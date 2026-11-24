@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>读痕·让阅读留痕</title>
+<style>
+  /* ============ 主题变量（默认：墨水屏 · 白色） ============
+     彩屏主题：低饱和邮政色系（muted & postal，单色与撞色）
+     排版：分层卡片（card + layered shadow）；墨水屏：高对比扁平，无阴影 */
+  html {
+    --bg:#ffffff; --fg:#111111; --muted:#555555;
+    --card:#ffffff; --soft:#eeeeee; --brd:#000000;
+    --card-brd:1px solid #000000; --card-sh:none;
+    --btn-bg:#ffffff; --btn-fg:#111111; --btn-brd:#000000; --btn-sh:none;
+    --tab-bg:#ffffff; --tab-fg:#111111; --tab-brd:#000000;
+    --seg-bg:transparent; --seg-sh:none; --seg-r:12px; --seg-pad:0px;
+    --input-brd:#000000; --dot-brd:#000000; --h1dot:0px;
+    --hint-brd:1px dashed #000000; --hint-bg:#ffffff;
+    --sel-bg:#000000; --sel-fg:#ffffff;
+    --trend:#000000;
+    --h0:#ffffff; --h1:#cccccc; --h2:#888888; --h3:#000000;
+    --r-card:14px; --r-btn:12px;
+  }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  :focus { outline:none; }   /* 触屏 App：去掉点击后的焦点框 */
+  body { margin:0; padding:12px 12px 28px; background:var(--bg); color:var(--fg);
+         font-family:sans-serif; font-size:16px; line-height:1.6; }
+  h1 { font-size:24px; margin:2px 0; letter-spacing:3px; font-weight:bold; }
+  h1::before { content:''; display:inline-block; width:var(--h1dot); height:var(--h1dot);
+               border-radius:4px; background:var(--sel-bg); margin-right:var(--h1dot);
+               vertical-align:3px; }
+  .sub { font-size:12px; color:var(--muted); margin:0 0 4px; letter-spacing:.5px; }
+  h2 { font-size:17px; margin:18px 0 10px; padding-bottom:5px; letter-spacing:2px;
+       border-bottom:2px solid var(--sel-bg); }
+  .small { font-size:13px; }
+  .muted { color:var(--muted); }
+  code { font-family:monospace; background:var(--soft); border-radius:4px; padding:0 4px; }
+
+  /* ============ 分层卡片 ============ */
+  .card { background:var(--card); border:var(--card-brd); box-shadow:var(--card-sh);
+          border-radius:var(--r-card); padding:12px 14px; margin:10px 0; }
+  .hint { font-size:13px; color:var(--muted); border:var(--hint-brd);
+          background:var(--hint-bg); border-radius:var(--r-btn);
+          padding:11px 13px; margin:16px 0 0; }
+
+  /* ============ 按钮：统一尺寸 + 圆角 ============ */
+  button { font:inherit; font-weight:bold; min-height:46px;
+           border:2px solid var(--btn-brd); background:var(--btn-bg); color:var(--btn-fg);
+           border-radius:var(--r-btn); padding:8px 12px; margin:0; cursor:pointer;
+           box-shadow:var(--btn-sh); }
+  button.sel, button:active { background:var(--sel-bg); color:var(--sel-fg);
+                               border-color:var(--sel-bg); }
+  .row { display:flex; gap:10px; margin:12px 0; }
+  .row button { flex:1 1 0; min-width:0; white-space:nowrap; overflow:hidden; }
+  #periods button { padding:8px 6px; }
+  @media (max-width:480px) {
+    #periods button { padding:8px 0; font-size:13px; }
+  }
+  #files button { display:block; width:100%; text-align:left; margin:6px 0; }
+
+  /* ============ 标签页（彩屏：分段式浮层控制） ============ */
+  .tabbar { position:sticky; top:0; z-index:9; background:var(--bg);
+            margin:6px -12px 8px; padding:8px 12px; }
+  .tabs { display:flex; gap:8px; background:var(--seg-bg); border-radius:var(--seg-r);
+          padding:var(--seg-pad); box-shadow:var(--seg-sh); }
+  .tab { flex:1 1 0; min-width:0; min-height:44px; font-size:15px;
+         background:var(--tab-bg); color:var(--tab-fg); border:2px solid var(--tab-brd);
+         box-shadow:none; border-radius:var(--seg-r); }
+  .page { display:none; }
+  .page.on { display:block; }
+
+  input[type=text] { width:100%; font:inherit; border:2px solid var(--input-brd);
+                      border-radius:var(--r-btn); padding:10px 13px; margin:6px 0;
+                      background:var(--card); color:var(--fg); box-shadow:var(--btn-sh); }
+  input[type=text]::placeholder { color:var(--muted); }
+
+  .kv { display:flex; flex-wrap:wrap; gap:8px; }
+  .kv div { background:var(--soft); border-radius:12px; padding:9px 12px;
+            min-width:104px; flex:1 1 100px; }
+  .kv span { font-size:11px; color:var(--muted); letter-spacing:1px; }
+  .kv b { display:block; font-size:20px; margin-top:3px; }
+
+  table { width:100%; border-collapse:collapse; }
+  td { border-bottom:1px solid var(--brd); padding:7px 4px; vertical-align:top; }
+  td.n { width:24px; } td.t { font-size:15px; } td.m { width:76px; text-align:right; white-space:nowrap; }
+  .au { display:block; font-size:11px; color:var(--muted); }
+
+  .chart { padding:8px; }
+  #heat { display:grid; grid-template-columns:repeat(26,1fr); gap:2px; }
+  .cell { height:13px; border-radius:3px; border:1px solid var(--brd); }
+
+  pre { white-space:pre-wrap; word-break:break-all; background:var(--soft);
+        border-radius:12px; padding:11px 13px; min-height:48px; font-size:12px;
+        margin:10px 0 0; }
+  .ok { font-weight:bold; }
+
+  /* ============ 主题选择 ============ */
+  .tgrid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:12px 0 4px; }
+  .tgrid.two { grid-template-columns:repeat(2,1fr); }
+  .theme-btn { display:flex; align-items:center; justify-content:center; gap:8px;
+               min-height:48px; }
+  .dot { width:18px; height:18px; border-radius:50%; border:2px solid var(--dot-brd);
+         flex:0 0 auto; }
+
+  /* ============ 黑白主题：悬浮翻页键（右下角，线条感） ============ */
+  .pager { position:fixed; right:14px; bottom:18px; display:none;
+           flex-direction:column; gap:10px; z-index:19; }
+  body.eink .pager { display:flex; }
+  .pager button { width:46px; height:46px; min-height:0; padding:0; border-radius:50%;
+                   display:flex; align-items:center; justify-content:center; }
+  .pager svg { display:block; }
+
+  /* ============ 黑白主题专属：去灰底、去灰字（热力图除外） ============ */
+  .eink .muted { text-decoration: underline; }   /* 灰色强调 → 下划线 */
+  .eink code { background: var(--bg); border: 1px solid var(--brd); }   /* 灰底 → 细框线 */
+  .eink .kv div { background: var(--bg); border: 1px solid var(--brd); }
+  .eink pre { background: var(--bg); border: 1px solid var(--brd); }
+
+  /* 字体列表：卡片网格（两列，点击应用） */
+  .fgrid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin:12px 0 4px; }
+  .fcard { margin:0; text-align:left; }
+  .fcard b { display:block; font-size:15px; word-break:break-all; }
+  .fcard span { display:block; font-size:11px; font-weight:normal; color:var(--muted); margin-top:2px; }
+  .fcard.on { border:2px solid var(--sel-bg); }
+</style>
+</head>
+<body>
+
+<h1>读痕·让阅读留痕</h1>
+<div class="sub">阅读统计 · 为「墨本阅读」设计</div>
+
+<nav class="tabbar" id="tabbar">
+  <div class="tabs" id="tabs">
+    <button type="button" class="tab sel" id="tb-import" onclick="showTab('import')">导入</button>
+    <button type="button" class="tab" id="tb-stats" onclick="showTab('stats')">统计</button>
+    <button type="button" class="tab" id="tb-export" onclick="showTab('export')">导出</button>
+    <button type="button" class="tab" id="tb-theme" onclick="showTab('theme')">主题</button>
+  </div>
+</nav>
+
+<!-- ========== 标签页 1：导入 ========== -->
+<section class="page on" id="page-import">
+  <h2>导入墨本阅读备份</h2>
+  <div class="card small">
+    在<b>墨本阅读</b>里：<b>设置 → 备份与恢复 → 备份</b>，导出
+    <code>backupYYYY-MM-DD.zip</code>（放在手机任意目录都行）。<br>
+    然后点下方按钮，在<b>系统文件管理器</b>里选中这个 ZIP 即可导入；
+    App 会自动读取备份里的 <code>readRecordDetail.json</code>（逐日阅读时长）。<br>
+    导入一次后会记住数据，之后打开直接到「统计」标签页查看。
+  </div>
+  <div class="row">
+    <button type="button" onclick="pickFile()">选择备份文件</button>
+    <button type="button" onclick="clearCache()">清除已存数据</button>
+  </div>
+  <div id="files" class="card small">点上方按钮，用系统文件管理器选择墨本阅读导出的 backup*.zip（也可以直接选 readRecordDetail.json）。</div>
+  <div class="small muted" style="margin-top:8px">备用：若系统文件管理器不可用，可手动填写完整路径</div>
+  <input type="text" id="path" placeholder="/sdcard/Download/backup2026-11-13.zip">
+  <div class="row">
+    <button type="button" onclick="loadPath(document.getElementById('path').value)">读取该路径</button>
+  </div>
+  <h2>数据源</h2>
+  <div class="card small" id="src">尚未导入数据。</div>
+</section>
+
+<!-- ========== 标签页 2：统计 ========== -->
+<section class="page" id="page-stats">
+  <h2>统计周期</h2>
+  <div id="periods" class="row"></div>
+  <h2>概览</h2>
+  <div class="card"><div class="kv" id="overview"></div></div>
+  <h2>Top 书单</h2>
+  <div class="card"><table id="books"></table></div>
+  <h2>每日趋势</h2>
+  <div class="card chart"><svg id="trend" viewBox="0 0 680 160" width="100%" height="150"></svg></div>
+  <h2>阅读热力图（最近 26 周）</h2>
+  <div class="card"><div id="heat"></div></div>
+  <div class="row" style="margin-top:14px">
+    <button type="button" onclick="shareBill()">分享图片账单</button>
+  </div>
+  <canvas id="billCanvas" width="720" height="1440" style="display:none"></canvas>
+</section>
+
+<!-- ========== 标签页 3：导出 ========== -->
+<section class="page" id="page-export">
+  <h2>导出 Reeden 阅读数据</h2>
+  <div class="card small">
+    把已导入的阅读记录按 Reeden 的「外部导入」格式生成 JSON：书名 / 作者 / 标签、
+    逐日阅读秒数与字数、阅读起止时间。<br>
+    可先点下方按钮在<b>系统文件管理器</b>里选择导出文件夹（不选就保存到默认「下载」目录）；
+    文件名自动带上导出日期与时间，之后在 Reeden 的导入功能里选择该文件即可
+    （书架无此书时可开启自动创建书籍）。
+  </div>
+  <div class="row">
+    <button type="button" onclick="pickExportDir()">选择导出文件夹（可选）</button>
+  </div>
+  <div class="small muted" id="dirNow" style="margin-top:2px">未选择文件夹，将保存到默认「下载」目录。</div>
+  <div class="row" style="margin-top:10px">
+    <button type="button" onclick="exportReeden()">生成并保存 Reeden 导入文件</button>
+  </div>
+</section>
+
+<!-- ========== 标签页 4：主题 ========== -->
+<section class="page" id="page-theme">
+  <h2>墨水屏主题（黑白两色）</h2>
+  <div class="small muted">纯黑白灰配色、无彩色渲染，贴合墨水屏刷新特性；右下角提供悬浮翻页键。</div>
+  <div class="tgrid two" id="eink-themes"></div>
+  <h2>彩屏主题（多色可选）</h2>
+  <div class="small muted">低饱和「邮政」色系 · 分层卡片 · 含撞色组合；按钮、图表、热力图与账单壁纸同步换色。</div>
+  <div class="tgrid" id="color-themes"></div>
+  <h2>当前主题</h2>
+  <div class="card small" id="theme-now">—</div>
+  <h2>界面字体</h2>
+  <div class="small muted">在<b>系统文件管理器</b>里选择手机上的字体文件夹（支持 .ttf / .otf），
+    刷新出的列表中点击字体名即可应用到整个 App。</div>
+  <div class="row">
+    <button type="button" onclick="pickFontDir()">选择字体文件夹</button>
+    <button type="button" onclick="resetFont()">恢复默认字体</button>
+  </div>
+  <div id="fontlist" class="fgrid"></div>
+  <div class="small muted" id="fontnow">当前字体：默认</div>
+</section>
+
+<h2>输出</h2>
+<pre id="out">—</pre>
+
+<div class="hint">
+  数据只来自你手动选择的墨本阅读备份文件，App 不联网、不上传，所有统计与账单均在手机本地生成。<br>
+  备份里的 <code>readRecordDetail.json</code> 提供逐日/逐书时长；若没有，会自动回退
+  <code>readRecordSession.json</code> 或 <code>readRecord.json</code>。<br>
+  <b>想更新统计：</b>重新在墨本阅读里备份一次 → 回「导入」标签页选中新 ZIP 即可。<br>
+  <b>换主题：</b>到「主题」标签页，墨水屏黑白两档、彩屏九色，切换立即生效并会记住。<br>
+  统计界面排版来自KoReader「墨痕inkstain」壁纸插件<br>
+  版本 v2.7 · 作者：momo_cat
+</div>
+
+<!-- 黑白主题悬浮翻页键 -->
+<div class="pager" id="pager">
+  <button type="button" onclick="pageStep(-1)" aria-label="上一页">
+    <svg width="20" height="20" viewBox="0 0 20 20"><path d="M5 12 L10 7 L15 12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+  <button type="button" onclick="pageStep(1)" aria-label="下一页">
+    <svg width="20" height="20" viewBox="0 0 20 20"><path d="M5 8 L10 13 L15 8" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+</div>
+
+<script>
+var period = 30, DATA = null, BILL_B64 = '';
+var KEY = 'readstats.legado.v2';
+var THEME_KEY = 'readstats.legado.theme';
+
+function out(s) { document.getElementById('out').textContent = s; }
+function hasFS() {
+  if (typeof FS === 'undefined') {
+    out('错误：文件接口未就绪。请确认安装的是本版 App（v2.7）。');
+    return false;
+  }
+  return true;
+}
+function fmt(ms) {
+  var h = ms / 3600000;
+  return h >= 1 ? (h.toFixed(1) + ' 小时') : (Math.round(ms / 60000) + ' 分钟');
+}
+function iso(d) {
+  return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+}
+function stamp() {
+  var d = new Date();
+  function p2(n) { return ('0' + n).slice(-2); }
+  return '' + d.getFullYear() + p2(d.getMonth() + 1) + p2(d.getDate()) + '-' +
+         p2(d.getHours()) + p2(d.getMinutes()) + p2(d.getSeconds());
+}
+function normDate(s) {
+  if (s === null || s === undefined) return null;
+  s = String(s).trim();
+  var m = s.match(/^(\d{4})-?(\d{2})-?(\d{2})/);
+  return m ? (m[1] + '-' + m[2] + '-' + m[3]) : null;
+}
+
+/* ---------------- 标签页 ---------------- */
+var TABS = ['import', 'stats', 'export', 'theme'];
+function showTab(id) {
+  var ok = false, i;
+  for (i = 0; i < TABS.length; i++) if (TABS[i] === id) ok = true;
+  if (!ok) id = 'import';
+  for (i = 0; i < TABS.length; i++) {
+    var t = TABS[i];
+    document.getElementById('page-' + t).className = 'page' + (t === id ? ' on' : '');
+    document.getElementById('tb-' + t).className = 'tab' + (t === id ? ' sel' : '');
+  }
+  try { window.scrollTo(0, 0); } catch (e) {}
+}
+
+/* ---------------- 翻页键（黑白主题） ---------------- */
+function pageStep(dir) {
+  var h = window.innerHeight || document.documentElement.clientHeight;
+  var step = h - 60;   /* 留 60px 上下文重叠 */
+  var cur = window.pageYOffset || 0;
+  var max = (document.documentElement.scrollHeight || 0) - h;
+  if (max < 0) max = 0;
+  var y = cur + dir * step;
+  if (y < 0) y = 0;
+  if (y > max) y = max;
+  window.scrollTo(0, y);
+}
+
+/* ---------------- 主题（墨水屏黑白 2 色 + 彩屏邮政 6 色） ---------------- */
+function cssv(n) {
+  try {
+    var v = getComputedStyle(document.documentElement).getPropertyValue(n);
+    v = (v || '').replace(/^\s+|\s+$/g, '');
+    return v || '#000';
+  } catch (e) { return '#000'; }
+}
+var THEMES = [
+  { id: 'ink-white', group: 'eink', name: '白色', desc: '纸面 · 晨读', dot: '#ffffff', dk: '#000000',
+    vars: { '--bg':'#ffffff', '--fg':'#111111', '--muted':'#111111', '--brd':'#000000',
+            '--card':'#ffffff', '--soft':'#eeeeee',
+            '--card-brd':'1px solid #000000', '--card-sh':'none',
+            '--btn-bg':'#ffffff', '--btn-fg':'#111111', '--btn-brd':'#000000', '--btn-sh':'none',
+            '--tab-bg':'#ffffff', '--tab-fg':'#111111', '--tab-brd':'#000000',
+            '--seg-bg':'transparent', '--seg-sh':'none', '--seg-r':'12px', '--seg-pad':'0px',
+            '--input-brd':'#000000', '--dot-brd':'#000000', '--h1dot':'0px',
+            '--hint-brd':'1px dashed #000000', '--hint-bg':'#ffffff',
+            '--sel-bg':'#000000', '--sel-fg':'#ffffff',
+            '--trend':'#000000', '--h0':'#ffffff', '--h1':'#cccccc', '--h2':'#888888', '--h3':'#000000',
+            '--r-card':'14px', '--r-btn':'12px' } },
+  { id: 'ink-black', group: 'eink', name: '黑色', desc: '夜读 · 反白', dot: '#000000', dk: '#ffffff',
+    vars: { '--bg':'#000000', '--fg':'#f2f2f2', '--muted':'#f2f2f2', '--brd':'#ffffff',
+            '--card':'#000000', '--soft':'#1e1e1e',
+            '--card-brd':'1px solid #ffffff', '--card-sh':'none',
+            '--btn-bg':'#000000', '--btn-fg':'#f2f2f2', '--btn-brd':'#ffffff', '--btn-sh':'none',
+            '--tab-bg':'#000000', '--tab-fg':'#f2f2f2', '--tab-brd':'#ffffff',
+            '--seg-bg':'transparent', '--seg-sh':'none', '--seg-r':'12px', '--seg-pad':'0px',
+            '--input-brd':'#ffffff', '--dot-brd':'#ffffff', '--h1dot':'0px',
+            '--hint-brd':'1px dashed #ffffff', '--hint-bg':'#000000',
+            '--sel-bg':'#ffffff', '--sel-fg':'#000000',
+            '--trend':'#ffffff', '--h0':'#000000', '--h1':'#3a3a3a', '--h2':'#8a8a8a', '--h3':'#ffffff',
+            '--r-card':'14px', '--r-btn':'12px' } },
+  /* ---- 彩屏：低饱和邮政色系（muted · postal · 单色与撞色；灰玫置首）---- */
+  { id: 'c-purple', group: 'color', name: '灰玫', desc: '干花 · 灰玫瑰', dot: '#a88489', dk: '#7e545b',
+    vars: { '--bg':'#f3efee', '--fg':'#362a2d', '--muted':'#817376', '--brd':'#e0d3d5',
+            '--card':'#fbfafa', '--soft':'#eee2e3',
+            '--card-brd':'0 solid transparent', '--card-sh':'0 1px 2px rgba(118,79,85,.05),0 10px 26px rgba(118,79,85,.13)',
+            '--btn-bg':'#fbfafa', '--btn-fg':'#764f55', '--btn-brd':'transparent', '--btn-sh':'0 2px 8px rgba(118,79,85,.16)',
+            '--tab-bg':'transparent', '--tab-fg':'#764f55', '--tab-brd':'transparent',
+            '--seg-bg':'#fbfafa', '--seg-sh':'0 2px 10px rgba(118,79,85,.10)', '--seg-r':'999px', '--seg-pad':'4px',
+            '--input-brd':'#e0d3d5', '--dot-brd':'transparent', '--h1dot':'12px',
+            '--hint-brd':'0 solid transparent', '--hint-bg':'#eee2e3',
+            '--sel-bg':'#a88489', '--sel-fg':'#ffffff',
+            '--trend':'#a88489', '--h0':'#f4ebec', '--h1':'#dbc4c7', '--h2':'#b29397', '--h3':'#7e545b',
+            '--r-card':'18px', '--r-btn':'14px' } },
+  { id: 'c-blue', group: 'color', name: '邮蓝', desc: '信笺 · 邮票蓝', dot: '#5e7c9b', dk: '#54708e',
+    vars: { '--bg':'#eff1f2', '--fg':'#2d3a46', '--muted':'#7a8792', '--brd':'#d9dfe4',
+            '--card':'#fbfbfa', '--soft':'#e6ebef',
+            '--card-brd':'0 solid transparent', '--card-sh':'0 1px 2px rgba(63,94,122,.05),0 10px 26px rgba(63,94,122,.13)',
+            '--btn-bg':'#fbfbfa', '--btn-fg':'#3f5e7a', '--btn-brd':'transparent', '--btn-sh':'0 2px 8px rgba(63,94,122,.16)',
+            '--tab-bg':'transparent', '--tab-fg':'#3f5e7a', '--tab-brd':'transparent',
+            '--seg-bg':'#fbfbfa', '--seg-sh':'0 2px 10px rgba(63,94,122,.10)', '--seg-r':'999px', '--seg-pad':'4px',
+            '--input-brd':'#d9dfe4', '--dot-brd':'transparent', '--h1dot':'12px',
+            '--hint-brd':'0 solid transparent', '--hint-bg':'#e6ebef',
+            '--sel-bg':'#5e7c9b', '--sel-fg':'#ffffff',
+            '--trend':'#5e7c9b', '--h0':'#ecf0f4', '--h1':'#c6d3de', '--h2':'#8fa8bf', '--h3':'#54708e',
+            '--r-card':'18px', '--r-btn':'14px' } },
+  { id: 'c-teal', group: 'color', name: '青灰', desc: '雨霁 · 石板青', dot: '#6e8b86', dk: '#55726d',
+    vars: { '--bg':'#eff1f0', '--fg':'#2b3836', '--muted':'#76837f', '--brd':'#d7dedc',
+            '--card':'#fafbfa', '--soft':'#e4eae8',
+            '--card-brd':'0 solid transparent', '--card-sh':'0 1px 2px rgba(74,99,96,.05),0 10px 26px rgba(74,99,96,.13)',
+            '--btn-bg':'#fafbfa', '--btn-fg':'#4a6360', '--btn-brd':'transparent', '--btn-sh':'0 2px 8px rgba(74,99,96,.16)',
+            '--tab-bg':'transparent', '--tab-fg':'#4a6360', '--tab-brd':'transparent',
+            '--seg-bg':'#fafbfa', '--seg-sh':'0 2px 10px rgba(74,99,96,.10)', '--seg-r':'999px', '--seg-pad':'4px',
+            '--input-brd':'#d7dedc', '--dot-brd':'transparent', '--h1dot':'12px',
+            '--hint-brd':'0 solid transparent', '--hint-bg':'#e4eae8',
+            '--sel-bg':'#6e8b86', '--sel-fg':'#ffffff',
+            '--trend':'#6e8b86', '--h0':'#eaf0ee', '--h1':'#bed0cb', '--h2':'#8ba69f', '--h3':'#55726d',
+            '--r-card':'18px', '--r-btn':'14px' } },
+  { id: 'c-green', group: 'color', name: '苔绿', desc: '庭院 · 苔痕', dot: '#7b8b6a', dk: '#5e724f',
+    vars: { '--bg':'#f0f1ea', '--fg':'#2f3529', '--muted':'#7e8574', '--brd':'#dadfcb',
+            '--card':'#fafaf6', '--soft':'#e8ecde',
+            '--card-brd':'0 solid transparent', '--card-sh':'0 1px 2px rgba(86,98,74,.05),0 10px 26px rgba(86,98,74,.13)',
+            '--btn-bg':'#fafaf6', '--btn-fg':'#56624a', '--btn-brd':'transparent', '--btn-sh':'0 2px 8px rgba(86,98,74,.16)',
+            '--tab-bg':'transparent', '--tab-fg':'#56624a', '--tab-brd':'transparent',
+            '--seg-bg':'#fafaf6', '--seg-sh':'0 2px 10px rgba(86,98,74,.10)', '--seg-r':'999px', '--seg-pad':'4px',
+            '--input-brd':'#dadfcb', '--dot-brd':'transparent', '--h1dot':'12px',
+            '--hint-brd':'0 solid transparent', '--hint-bg':'#e8ecde',
+            '--sel-bg':'#7b8b6a', '--sel-fg':'#ffffff',
+            '--trend':'#7b8b6a', '--h0':'#edf0e2', '--h1':'#c4cdb0', '--h2':'#95a87e', '--h3':'#5e724f',
+            '--r-card':'18px', '--r-btn':'14px' } },
+  { id: 'c-orange', group: 'color', name: '赭金', desc: '旧纸 · 赭石', dot: '#a9955b', dk: '#7b6731',
+    vars: { '--bg':'#f3f1e8', '--fg':'#3a3423', '--muted':'#85806b', '--brd':'#dfdac5',
+            '--card':'#fbfaf3', '--soft':'#ede7d5',
+            '--card-brd':'0 solid transparent', '--card-sh':'0 1px 2px rgba(116,97,47,.05),0 10px 26px rgba(116,97,47,.13)',
+            '--btn-bg':'#fbfaf3', '--btn-fg':'#74612f', '--btn-brd':'transparent', '--btn-sh':'0 2px 8px rgba(116,97,47,.16)',
+            '--tab-bg':'transparent', '--tab-fg':'#74612f', '--tab-brd':'transparent',
+            '--seg-bg':'#fbfaf3', '--seg-sh':'0 2px 10px rgba(116,97,47,.10)', '--seg-r':'999px', '--seg-pad':'4px',
+            '--input-brd':'#dfdac5', '--dot-brd':'transparent', '--h1dot':'12px',
+            '--hint-brd':'0 solid transparent', '--hint-bg':'#ede7d5',
+            '--sel-bg':'#a9955b', '--sel-fg':'#ffffff',
+            '--trend':'#a9955b', '--h0':'#f3eedd', '--h1':'#d9cca4', '--h2':'#b3a168', '--h3':'#7b6731',
+            '--r-card':'18px', '--r-btn':'14px' } },
+  { id: 'c-red', group: 'color', name: '陶土', desc: '陶窑 · 赤陶', dot: '#ac7a5f', dk: '#8a5a40',
+    vars: { '--bg':'#f3efea', '--fg':'#372b24', '--muted':'#837267', '--brd':'#e0d4c9',
+            '--card':'#fbf9f5', '--soft':'#eee3da',
+            '--card-brd':'0 solid transparent', '--card-sh':'0 1px 2px rgba(123,79,57,.05),0 10px 26px rgba(123,79,57,.13)',
+            '--btn-bg':'#fbf9f5', '--btn-fg':'#7b4f39', '--btn-brd':'transparent', '--btn-sh':'0 2px 8px rgba(123,79,57,.16)',
+            '--tab-bg':'transparent', '--tab-fg':'#7b4f39', '--tab-brd':'transparent',
+            '--seg-bg':'#fbf9f5', '--seg-sh':'0 2px 10px rgba(123,79,57,.10)', '--seg-r':'999px', '--seg-pad':'4px',
+            '--input-brd':'#e0d4c9', '--dot-brd':'transparent', '--h1dot':'12px',
+            '--hint-brd':'0 solid transparent', '--hint-bg':'#eee3da',
+            '--sel-bg':'#ac7a5f', '--sel-fg':'#ffffff',
+            '--trend':'#ac7a5f', '--h0':'#f5ebe1', '--h1':'#dec2ac', '--h2':'#ba8e70', '--h3':'#8a5a40',
+            '--r-card':'18px', '--r-btn':'14px' } },
+  /* ---- v2.6 新增：雾紫（单色）+ 蓝橘 / 苔赤（撞色：dot 主色、dk 描边色、trend 点缀色）---- */
+  { id: 'c-mist', group: 'color', name: '雾紫', desc: '暮色 · 紫罗兰', dot: '#8f7cab', dk: '#6f5e8c',
+    vars: { '--bg':'#f4f1f6', '--fg':'#34303d', '--muted':'#827b8d', '--brd':'#e0dce7',
+            '--card':'#fbfafc', '--soft':'#ece7f0',
+            '--card-brd':'0 solid transparent', '--card-sh':'0 1px 2px rgba(111,94,140,.05),0 10px 26px rgba(111,94,140,.13)',
+            '--btn-bg':'#fbfafc', '--btn-fg':'#6a5b82', '--btn-brd':'transparent', '--btn-sh':'0 2px 8px rgba(111,94,140,.16)',
+            '--tab-bg':'transparent', '--tab-fg':'#6a5b82', '--tab-brd':'transparent',
+            '--seg-bg':'#fbfafc', '--seg-sh':'0 2px 10px rgba(111,94,140,.10)', '--seg-r':'999px', '--seg-pad':'4px',
+            '--input-brd':'#e0dce7', '--dot-brd':'transparent', '--h1dot':'12px',
+            '--hint-brd':'0 solid transparent', '--hint-bg':'#ece7f0',
+            '--sel-bg':'#8f7cab', '--sel-fg':'#ffffff',
+            '--trend':'#8f7cab', '--h0':'#f3eff6', '--h1':'#ddd3e6', '--h2':'#b6a6c9', '--h3':'#6f5e8c',
+            '--r-card':'18px', '--r-btn':'14px' } },
+  { id: 'c-duo-blue', group: 'color', name: '蓝橘', desc: '海岸 · 落日', dot: '#5d7fa0', dk: '#bd8152',
+    vars: { '--bg':'#f3f1ed', '--fg':'#33302b', '--muted':'#847f75', '--brd':'#dedbd3',
+            '--card':'#fbfaf7', '--soft':'#e9e6de',
+            '--card-brd':'0 solid transparent', '--card-sh':'0 1px 2px rgba(79,106,137,.05),0 10px 26px rgba(79,106,137,.12)',
+            '--btn-bg':'#fbfaf7', '--btn-fg':'#4f6a89', '--btn-brd':'transparent', '--btn-sh':'0 2px 8px rgba(79,106,137,.16)',
+            '--tab-bg':'transparent', '--tab-fg':'#4f6a89', '--tab-brd':'transparent',
+            '--seg-bg':'#fbfaf7', '--seg-sh':'0 2px 10px rgba(79,106,137,.10)', '--seg-r':'999px', '--seg-pad':'4px',
+            '--input-brd':'#dedbd3', '--dot-brd':'transparent', '--h1dot':'12px',
+            '--hint-brd':'0 solid transparent', '--hint-bg':'#e9e6de',
+            '--sel-bg':'#5d7fa0', '--sel-fg':'#ffffff',
+            '--trend':'#bd8152', '--h0':'#f2f0ea', '--h1':'#d7dbe2', '--h2':'#9fb0c6', '--h3':'#4f6a89',
+            '--r-card':'18px', '--r-btn':'14px' } },
+  { id: 'c-duo-moss', group: 'color', name: '苔赤', desc: '林间 · 篝火', dot: '#748865', dk: '#b3715e',
+    vars: { '--bg':'#f3f2ea', '--fg':'#33322a', '--muted':'#83816f', '--brd':'#dfdecf',
+            '--card':'#fbfaf3', '--soft':'#eaeadb',
+            '--card-brd':'0 solid transparent', '--card-sh':'0 1px 2px rgba(94,114,79,.05),0 10px 26px rgba(94,114,79,.12)',
+            '--btn-bg':'#fbfaf3', '--btn-fg':'#5f6f4e', '--btn-brd':'transparent', '--btn-sh':'0 2px 8px rgba(94,114,79,.16)',
+            '--tab-bg':'transparent', '--tab-fg':'#5f6f4e', '--tab-brd':'transparent',
+            '--seg-bg':'#fbfaf3', '--seg-sh':'0 2px 10px rgba(94,114,79,.10)', '--seg-r':'999px', '--seg-pad':'4px',
+            '--input-brd':'#dfdecf', '--dot-brd':'transparent', '--h1dot':'12px',
+            '--hint-brd':'0 solid transparent', '--hint-bg':'#eaeadb',
+            '--sel-bg':'#748865', '--sel-fg':'#ffffff',
+            '--trend':'#b3715e', '--h0':'#f2f1e6', '--h1':'#d9dece', '--h2':'#a9b795', '--h3':'#5e724f',
+            '--r-card':'18px', '--r-btn':'14px' } }
+];
+var THEME_ID = 'ink-white';
+function findTheme(id) {
+  for (var i = 0; i < THEMES.length; i++) if (THEMES[i].id === id) return THEMES[i];
+  return null;
+}
+function applyTheme(id, silent) {
+  var t = findTheme(id);
+  if (!t) t = THEMES[0];
+  THEME_ID = t.id;
+  document.body.className = t.group === 'eink' ? 'eink' : '';   /* 黑白主题显示翻页键 */
+  try { if (typeof FS !== 'undefined' && FS.setPagerOn) FS.setPagerOn(t.group === 'eink'); } catch (e) {}   /* 音量键/实体翻页键联动开关 */
+  var st = document.documentElement.style, k;
+  for (k in t.vars) st.setProperty(k, t.vars[k]);
+  try { localStorage.setItem(THEME_KEY, t.id); } catch (e) {}
+  renderThemeTab();
+  if (!silent) { render(); drawBill(); }   /* 图表与账单随主题重新生成 */
+}
+function renderThemeTab() {
+  var eh = '', ch = '', i, t, b;
+  for (i = 0; i < THEMES.length; i++) {
+    t = THEMES[i];
+    b = '<button type="button" class="theme-btn' + (t.id === THEME_ID ? ' sel' : '') +
+      '" onclick="applyTheme(\'' + t.id + '\')">' +
+      '<span class="dot" style="background:' + t.dot + ';border-color:' + (t.dk || 'var(--dot-brd)') + '"></span>' + t.name + '</button>';
+    if (t.group === 'eink') eh += b; else ch += b;
+  }
+  document.getElementById('eink-themes').innerHTML = eh;
+  document.getElementById('color-themes').innerHTML = ch;
+  var cur = findTheme(THEME_ID);
+  document.getElementById('theme-now').innerHTML = cur ?
+    ('当前：<b>' + cur.name + ' · ' + cur.desc + '</b>（' +
+     (cur.group === 'eink' ? '墨水屏' : '彩屏') + '主题）<br>' +
+     '<span class="muted">统计图表与账单配色已按此主题生成，重启 App 后仍会记住该选择。</span>') : '—';
+}
+
+/* ---------------- 导入（系统文件管理器 SAF） ---------------- */
+function fromB64(s) {
+  s = String(s).replace(/\s/g, '');
+  while (s.length % 4) s += '=';
+  var bin = atob(s);
+  try {
+    var arr = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    return new TextDecoder('utf-8').decode(arr);
+  } catch (e) { return decodeURIComponent(escape(bin)); }
+}
+function pickFile() {
+  if (!hasFS()) return;
+  FS.pick();
+  out('已打开系统文件管理器，请选中墨本阅读导出的 backup*.zip。');
+}
+var pickedDone = false, takeErrShown = false, nameShown = false;
+function showPickedName() {
+  if (nameShown) return;
+  try {
+    var n = FS.name ? FS.name() : '';
+    if (n) {
+      nameShown = true;
+      document.getElementById('files').innerHTML =
+        '已选择：<b>' + esc(n) + '</b>　正在读取阅读记录…';
+      out('已选择文件 ' + n + '，正在读取…');
+    }
+  } catch (e) {}
+}
+function safeTake() {
+  try {
+    var len = FS.pickedLen();
+    if (!len || len < 0) return 'ERR: empty';
+    var parts = [], CH = 8192;
+    for (var i = 0; i * CH < len; i++) {
+      var c = FS.chunk(i);
+      if (!c) return 'ERR: chunk ' + i;
+      parts.push(c);
+    }
+    FS.clearPicked();
+    return parts.join('');
+  } catch (e) {
+    if (!takeErrShown) { takeErrShown = true; out('文件桥取数异常：' + e); }
+    return 'ERR: bridge';
+  }
+}
+function handlePicked(b64) {
+  if (pickedDone) return;
+  if (!b64 || b64.indexOf('ERR:') === 0) return;   // 尚未有数据，静默等待
+  pickedDone = true;
+  out('收到数据 ' + b64.length + ' 字符，正在解析…');
+  try {
+    var text = fromB64(b64);
+    var which = 'readRecordDetail.json';
+    try {
+      var probe = JSON.parse(text);
+      var first = Array.isArray(probe) ? probe[0] :
+        ((probe.data && probe.data[0]) || (probe.list && probe.list[0]));
+      if (first && first.startTime && !first.date) which = 'readRecordSession.json';
+      else if (first && !first.date && first.readTime !== undefined) which = 'readRecord.json';
+    } catch (e) {}
+    var parsed = parseRecords(text, which, '系统文件管理器');
+    if (!parsed) return;
+    DATA = parsed;
+    try { localStorage.setItem(KEY, JSON.stringify(DATA)); } catch (e) {}
+    var fname = '';
+    try { fname = FS.name ? FS.name() : ''; } catch (e) {}
+    document.getElementById('files').innerHTML =
+      '已选择：<b>' + esc(fname || '备份文件') + '</b>　<span class="ok">导入成功</span>';
+    document.getElementById('src').innerHTML =
+      '<b>墨本阅读 · ' + which + '</b>　<span class="ok">已导入</span><br>' +
+      '<span class="small">来源：系统文件管理器选择的文件<br>' +
+      '导入：' + DATA.generated + '　逐日 ' + DATA.daily.length + ' 天　书籍 ' +
+      DATA.books.length + ' 本</span>';
+    out('导入成功：' + which + '，逐日 ' + DATA.daily.length + ' 天，' +
+        DATA.books.length + ' 本书，累计 ' + fmt(DATA.total));
+    render();
+    drawBill(parsed);
+    showTab('stats');   /* 导入成功后直达统计 */
+  } catch (e) {
+    out('导入异常：' + e + '\n文本前 120 字：' + String(text).slice(0, 120));
+  }
+}
+window.onFilePicked = function () {
+  showPickedName();
+  if (typeof FS !== 'undefined') handlePicked(safeTake());
+};
+/* 轮询兜底：SAF 返回后页面若重载，仍能取到已选文件的数据 */
+var pollCount = 0;
+var pollTimer = setInterval(function () {
+  if (pickedDone || typeof FS === 'undefined') { clearInterval(pollTimer); return; }
+  showPickedName();
+  handlePicked(safeTake());
+  if (++pollCount > 150) clearInterval(pollTimer);
+}, 400);
+
+/* 备用：按路径扫描（不再自动执行） */
+function scan() {
+  if (!hasFS()) return;
+  var txt = FS.list();
+  var host = document.getElementById('files');
+  if (!txt || txt.indexOf('ERR:') === 0) {
+    host.innerHTML = '扫描失败或没有找到文件。<br>' + (txt || '(空)') +
+      '<br>请把 backup*.zip 放进「下载 / Download」目录，或用下方手动路径。';
+    return;
+  }
+  var lines = txt.split('\n').filter(function (x) { return x.indexOf('\t') > 0; });
+  // ZIP 优先、同类型按名字倒序（备份文件名带日期，最新的在前）
+  lines.sort(function (a, b) {
+    var az = /\.zip$/i.test(a.split('\t')[0]) ? 0 : 1;
+    var bz = /\.zip$/i.test(b.split('\t')[0]) ? 0 : 1;
+    if (az !== bz) return az - bz;
+    return b.split('\t')[1].localeCompare(a.split('\t')[1]);
+  });
+  lines = lines.slice(0, 20);
+  if (!lines.length) {
+    host.innerHTML = '未在 Download / Documents / backup / 根目录找到备份文件。<br>' +
+      '可以先把备份 ZIP 放到 Download，或用下方手动填路径。';
+    return;
+  }
+  var h = '<b>找到 ' + lines.length + ' 个文件，点一个导入：</b>';
+  lines.forEach(function (ln) {
+    var p = ln.split('\t');
+    var name = p[1], size = Math.round((parseInt(p[2], 10) || 0) / 1024);
+    h += '<button type="button" onclick="loadPath(\'' + p[0].replace(/'/g, "\\'") + '\')">' +
+         name + '　(' + size + ' KB)</button>';
+  });
+  host.innerHTML = h;
+  out('扫描完成：' + lines.length + ' 个候选文件。');
+}
+
+function loadPath(path) {
+  if (!hasFS()) return;
+  path = (path || '').trim();
+  if (!path) { out('请先选择文件或填写路径。'); return; }
+  var isZip = /\.zip$/i.test(path);
+  var raw = '', which = '';
+  if (isZip) {
+    var names = ['readRecordDetail.json', 'readRecordSession.json', 'readRecord.json'];
+    for (var i = 0; i < names.length; i++) {
+      var t = FS.readZip(path, names[i]);
+      if (t && t.indexOf('ERR:') !== 0 && t.length > 2) { raw = t; which = names[i]; break; }
+    }
+    if (!raw) { out('这个 ZIP 里没有找到阅读记录 JSON。\n请确认选的是墨本阅读的「备份」文件，而不是恢复包/书源包。'); return; }
+  } else {
+    raw = FS.readText(path);
+    which = path.split('/').pop();
+    if (!raw || raw.indexOf('ERR:') === 0) { out('读取失败：' + raw); return; }
+  }
+  var parsed = parseRecords(raw, which, path);
+  if (!parsed) return;
+  DATA = parsed;
+  try { localStorage.setItem(KEY, JSON.stringify(DATA)); } catch (e) {}
+  document.getElementById('src').innerHTML =
+    '<b>墨本阅读 · ' + which + '</b><br>' +
+    '<span class="small">文件：' + path.split('/').pop() + '<br>' +
+    '导入：' + DATA.generated + '　逐日 ' + DATA.daily.length + ' 天　书籍 ' +
+    DATA.books.length + ' 本</span>';
+  out('导入成功：' + which + '，逐日 ' + DATA.daily.length + ' 天，' +
+      DATA.books.length + ' 本书，累计 ' + fmt(DATA.total));
+  render();
+  drawBill();
+  showTab('stats');   /* 导入成功后直达统计 */
+}
+
+function parseRecords(text, which, path) {
+  var arr;
+  try { arr = JSON.parse(text); }
+  catch (e) { out('JSON 解析失败：' + e + '\n前 120 字：' + text.slice(0, 120)); return null; }
+  if (!Array.isArray(arr)) {
+    if (arr && Array.isArray(arr.data)) arr = arr.data;
+    else if (arr && Array.isArray(arr.list)) arr = arr.list;
+    else { out('备份格式不是预期的数组。'); return null; }
+  }
+  var days = {}, bk = {}, mode = 'detail';
+  if (which.indexOf('Session') >= 0) mode = 'session';
+  else if (which.indexOf('readRecord.json') >= 0) mode = 'total';
+
+  arr.forEach(function (r) {
+    var date = null, ms = 0;
+    if (mode === 'detail') {
+      date = normDate(r.date); ms = Number(r.readTime || 0);
+    } else if (mode === 'session') {
+      var st = Number(r.startTime || 0), en = Number(r.endTime || 0);
+      ms = Math.max(0, en - st);
+      if (st) { var d = new Date(st); date = iso(d); }
+    } else {
+      ms = Number(r.readTime || 0);
+    }
+    var name = String(r.bookName || r.title || '未知');
+    var author = String(r.bookAuthor || r.author || '');
+    if (date) days[date] = (days[date] || 0) + ms;
+    var k = name + '|' + author;
+    if (!bk[k]) bk[k] = { title: name, author: author, ms: 0, dd: {}, dw: {} };
+    bk[k].ms += ms;
+    if (date) bk[k].dd[date] = (bk[k].dd[date] || 0) + ms;
+    var wc = Number(r.readWords || 0) || 0;
+    if (date && wc) bk[k].dw[date] = (bk[k].dw[date] || 0) + wc;
+  });
+
+  var daily = Object.keys(days).sort().map(function (d) { return [d, days[d]]; });
+  var books = Object.keys(bk).map(function (k) {
+    var b = bk[k], dd = Object.keys(b.dd).sort().map(function (d) { return [d, b.dd[d]]; });
+    var dw = Object.keys(b.dw || {}).sort().map(function (d) { return [d, b.dw[d]]; });
+    return { title: b.title, author: b.author, ms: b.ms, dd: dd, dw: dw };
+  }).sort(function (a, b) { return b.ms - a.ms; });
+  var total = daily.reduce(function (a, x) { return a + x[1]; }, 0);
+  if (!total) total = books.reduce(function (a, b) { return a + b.ms; }, 0);
+  if (!daily.length && !books.length) { out('备份里没有可用的阅读记录。'); return null; }
+  return {
+    generated: new Date().toLocaleString('zh-CN', { hour12: false }),
+    source: which, file: path.split('/').pop(), mode: mode,
+    daily: daily, books: books, total: total
+  };
+}
+
+function clearCache() {
+  try { localStorage.removeItem(KEY); } catch (e) {}
+  DATA = null;
+  pickedDone = false; nameShown = false;
+  document.getElementById('files').textContent =
+    '点上方按钮，用系统文件管理器选择墨本阅读导出的 backup*.zip（也可以直接选 readRecordDetail.json）。';
+  document.getElementById('src').textContent = '已清除，请重新导入备份。';
+  render();
+  showTab('import');
+  out('本地缓存已清除。');
+}
+
+/* ---------------- 统计渲染 ---------------- */
+var PERIODS = [[1, '今天'], [7, '7天'], [30, '30天'], [90, '季度'],
+               [182, '半年'], [365, '一年'], [0, '全部']];
+function renderPeriods() {
+  document.getElementById('periods').innerHTML = PERIODS.map(function (p) {
+    return '<button type="button" class="' + (p[0] === period ? 'sel' : '') +
+      '" onclick="setPeriod(' + p[0] + ')">' + p[1] + '</button>';
+  }).join('');
+}
+function setPeriod(n) { period = n; renderPeriods(); render(); }
+function startDate() {
+  if (period === 0) return '0000-00-00';
+  var d = new Date(); d.setDate(d.getDate() - (period - 1)); return iso(d);
+}
+function render() {
+  renderPeriods();
+  var D = DATA || { daily: [], books: [], total: 0 };
+  var st = startDate();
+  var daily = D.daily.filter(function (x) { return x[0] >= st; });
+  var total = daily.reduce(function (a, x) { return a + x[1]; }, 0);
+  var active = daily.filter(function (x) { return x[1] > 0; }).length;
+  var peak = daily.reduce(function (a, x) { return Math.max(a, x[1]); }, 0);
+  document.getElementById('overview').innerHTML =
+    '<div><span>总时长</span><b>' + fmt(total) + '</b></div>' +
+    '<div><span>日均</span><b>' + (active ? Math.round(total / active / 60000) + ' 分' : '—') + '</b></div>' +
+    '<div><span>阅读天数</span><b>' + active + '</b></div>' +
+    '<div><span>峰值</span><b>' + fmt(peak) + '</b></div>' +
+    '<div><span>书目</span><b>' + D.books.length + '</b></div>';
+
+  var bl = D.books.map(function (b) {
+    var ms = 0;
+    if (b.dd && b.dd.length) {
+      ms = b.dd.reduce(function (a, x) { return a + (x[0] >= st ? x[1] : 0); }, 0);
+    } else if (period === 0) ms = b.ms;
+    return { t: b.title, a: b.author, ms: ms };
+  }).filter(function (b) { return b.ms > 0; })
+    .sort(function (a, b) { return b.ms - a.ms; }).slice(0, 9);
+  document.getElementById('books').innerHTML = bl.length ? bl.map(function (b, i) {
+    return '<tr><td class="n">' + (i + 1) + '</td><td class="t">' +
+      esc(b.t) + '<span class="au">' + esc(b.a || '佚名') + '</span></td>' +
+      '<td class="m">' + fmt(b.ms) + '</td></tr>';
+  }).join('') : '<tr><td>本期暂无阅读记录，请先到「导入」标签页导入备份。</td></tr>';
+
+  drawTrend(D.daily, st);
+  drawHeat(D.daily);
+}
+function esc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+function drawTrend(daily, st) {
+  var map = {}; daily.forEach(function (x) { map[x[0]] = x[1]; });
+  var n = period === 0 ? Math.min(Object.keys(map).length, 365) : Math.min(period, 90);
+  if (!n) n = 30;
+  var vals = [], today = new Date();
+  for (var i = n - 1; i >= 0; i--) {
+    var d = new Date(); d.setDate(today.getDate() - i); vals.push(map[iso(d)] || 0);
+  }
+  var mx = Math.max.apply(null, vals) || 1;
+  var pts = vals.map(function (v, i) {
+    return [10 + i * 660 / Math.max(1, n - 1), 150 - (v / mx) * 132];
+  });
+  var path = pts.map(function (p, i) { return (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join(' ');
+  var TR = cssv('--trend'), FG = cssv('--fg'), MU = cssv('--muted');
+  var s = '<line x1="10" y1="150" x2="670" y2="150" stroke="' + FG + '" stroke-width="2"/>';
+  s += '<path d="' + path + '" fill="none" stroke="' + TR + '" stroke-width="2"/>';
+  pts.forEach(function (p) { s += '<circle cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="2.5" fill="' + TR + '"/>'; });
+  s += '<text x="12" y="14" font-size="12" fill="' + MU + '">峰值 ' + fmt(mx) + '</text>';
+  document.getElementById('trend').innerHTML = s;
+}
+function drawHeat(daily) {
+  var map = {}; daily.forEach(function (x) { map[x[0]] = x[1]; });
+  var HEAT = [cssv('--h0'), cssv('--h1'), cssv('--h2'), cssv('--h3')];
+  var today = new Date(), cells = [];
+  for (var w = 0; w < 26; w++) {
+    for (var wd = 0; wd < 7; wd++) {
+      var d = new Date(); d.setDate(today.getDate() - ((25 - w) * 7 + (6 - wd)));
+      var v = map[iso(d)] || 0;
+      var lvl = v === 0 ? 0 : (v < 600000 ? 1 : (v < 1800000 ? 2 : 3));
+      cells.push('<div class="cell" style="background:' + HEAT[lvl] + '"></div>');
+    }
+  }
+  document.getElementById('heat').innerHTML = cells.join('');
+}
+
+/* ---------------- 图片账单（Canvas，配色跟随主题，用于分享） ---------------- */
+function drawBill(input) {
+  var c = document.getElementById('billCanvas'), g = c.getContext('2d');
+  var W = 720, H = 1440;
+  var D = input || DATA || { daily: [], books: [], total: 0, generated: '—' };
+  var BG = cssv('--bg'), FG = cssv('--fg'), AC = cssv('--sel-bg'),
+      MU = cssv('--muted'), BRD = cssv('--brd'), TR = cssv('--trend');
+  var HEAT = [cssv('--h0'), cssv('--h1'), cssv('--h2'), cssv('--h3')];
+  g.fillStyle = BG; g.fillRect(0, 0, W, H);
+  g.fillStyle = FG; g.strokeStyle = FG;
+  function T(x, y, s, size, col) { g.font = size + 'px ' + FONT_FAM + ', sans-serif'; g.fillStyle = col || FG; g.fillText(s, x, y); }
+  function L(y) { g.strokeStyle = FG; g.lineWidth = 2; g.beginPath(); g.moveTo(40, y); g.lineTo(W - 40, y); g.stroke(); }
+  g.strokeStyle = AC; g.lineWidth = 3; g.strokeRect(16, 16, W - 32, H - 32);
+  T(40, 100, '读痕', 62, AC);
+  T(44, 140, 'READING RECEIPT · 墨本阅读', 22, MU);
+  L(168);
+
+  var today = new Date(), start = new Date(); start.setDate(today.getDate() - 29);
+  var st = iso(start), map = {};
+  D.daily.forEach(function (x) { map[x[0]] = x[1]; });
+  var vals = [], periodMs = 0, active = 0;
+  for (var i = 29; i >= 0; i--) {
+    var d = new Date(); d.setDate(today.getDate() - i);
+    var v = map[iso(d)] || 0; vals.push(v); periodMs += v; if (v > 0) active++;
+  }
+  var no = iso(today).replace(/-/g, '') + '-' + Math.floor(1000 + Math.random() * 9000);
+  T(40, 210, '单号  ' + no, 24);
+  T(40, 246, '周期  ' + st + ' ~ ' + iso(today), 24);
+  T(40, 282, '来源  墨本阅读 · 本地备份', 22);
+  L(320);
+  T(40, 370, '本期阅读时长', 28, MU);
+  T(40, 425, fmt(periodMs), 56);
+  T(40, 470, '日均 ' + (active ? Math.round(periodMs / active / 60000) : 0) +
+    ' 分钟   ·   阅读 ' + active + ' 天   ·   书目 ' + D.books.length + ' 本', 24, MU);
+  L(510);
+
+  T(40, 552, 'TOP 书单（按累计时长）', 28);
+  var y = 592;
+  D.books.slice(0, 5).forEach(function (b, i) {
+    T(40, y, (i + 1) + '. ' + b.title.slice(0, 13), 25);
+    T(40, y + 30, '   ' + (b.author || '佚名').slice(0, 10) + '   ' + fmt(b.ms), 19, MU);
+    y += 64;
+  });
+  L(y + 4); y += 44;   /* 分隔线与下方标题拉开距离，避免横线穿过文字 */
+
+  T(40, y, '每日趋势（最近 30 天）', 26); y += 18;
+  var gx = 40, gy = y, gw = W - 80, gh = 120, mx = Math.max.apply(null, vals) || 1;
+  g.strokeStyle = BRD; g.lineWidth = 2; g.strokeRect(gx, gy, gw, gh);
+  g.strokeStyle = TR; g.beginPath();
+  for (var j = 0; j < 30; j++) {
+    var px = gx + j * gw / 29, py = gy + gh - (vals[j] / mx) * (gh - 12);
+    if (j === 0) g.moveTo(px, py); else g.lineTo(px, py);
+    g.moveTo(px + 2.6, py); g.arc(px, py, 2.6, 0, Math.PI * 2);
+  }
+  g.stroke(); y = gy + gh + 30;
+  T(40, y, '峰值 ' + fmt(mx) + ' / 天', 22, MU); y += 40;
+
+  T(40, y, '阅读热力图（最近 26 周）', 24); y += 18;
+  var hgap = 5, hcw = (W - 80 - 25 * hgap) / 26;   /* 26 列恰好铺满内容宽度 40 → W-40 */
+  for (var w = 0; w < 26; w++) {
+    for (var wd = 0; wd < 7; wd++) {
+      var dd = new Date(); dd.setDate(today.getDate() - ((25 - w) * 7 + (6 - wd)));
+      var vv = map[iso(dd)] || 0;
+      var lv = vv === 0 ? 0 : (vv < 600000 ? 1 : (vv < 1800000 ? 2 : 3));
+      var hx = 40 + w * (hcw + hgap);
+      g.fillStyle = HEAT[lv];
+      g.fillRect(hx, y + wd * 15, hcw, 12);
+      g.lineWidth = 1; g.strokeStyle = BRD; g.strokeRect(hx, y + wd * 15, hcw, 12);
+      g.fillStyle = FG;
+    }
+  }
+  y += 7 * 15 + 20;
+  L(y); y += 14;
+  g.fillStyle = FG;
+  var x = 40, widths = [2, 3, 5, 8, 3, 2, 6, 4, 2, 8, 3, 5], bi = 0, bw;
+  while (true) {
+    bw = widths[bi % widths.length]; bi++;
+    if (x + bw + 4 > W - 40) break;   /* 剩余空间画不下完整一根条时停止 */
+    g.fillRect(x, y, bw, 30); x += bw + 4;
+  }
+  if (x < W - 40) g.fillRect(x, y, W - 40 - x, 30);   /* 末段补齐到右边界，与内容宽度对齐 */
+  y += 60;
+  T(40, y, '读痕 · 让阅读留痕', 23, AC);
+  T(40, y + 30, 'generated ' + D.generated + '  |  墨本阅读 · 本地生成', 18, MU);
+
+  var url = c.toDataURL('image/png');
+  BILL_B64 = url.split(',')[1];
+  return true;
+}
+/* 字体就绪后重画账单（@font-face 异步加载，等加载完成再画；失败、超时或不支持则直接画） */
+function redrawBill() {
+  var done = false;
+  function once() { if (done) return; done = true; drawBill(); }
+  try {
+    if (document.fonts && document.fonts.load) {
+      document.fonts.load('16px ' + FONT_FAM).then(once, once);
+      setTimeout(once, 1200);
+      return;
+    }
+  } catch (e) {}
+  drawBill();
+}
+/* 分享图片账单：生成后写入系统相册并调起分享面板 */
+function shareBill() {
+  if (!hasFS()) return;
+  if (!BILL_B64) drawBill();
+  if (!BILL_B64) { out('图片账单生成失败。'); return; }
+  out('正在生成图片账单并调起系统分享…');
+  var r = '';
+  try { r = FS.sharePng(BILL_B64); }
+  catch (e) { out('分享异常：' + e); return; }
+  if (!r || r.indexOf('ERR:') === 0) { out('分享失败：' + (r || '(空)')); return; }
+  out('已生成图片账单并调起系统分享（' + r + '）。\n分享面板可直接发送到微信等应用，图片也已存入相册。');
+}
+
+/* ---------------- 导出 Reeden 导入文件 ---------------- */
+function toB64(s) {
+  var arr = new TextEncoder().encode(s);
+  var bin = '';
+  for (var i = 0; i < arr.length; i++) bin += String.fromCharCode(arr[i]);
+  return btoa(bin);
+}
+/* 选择导出文件夹（SAF；不选则用默认「下载」目录） */
+function pickExportDir() {
+  if (!hasFS()) return;
+  try {
+    FS.pickDir();
+    out('已打开系统文件管理器，请选择导出文件夹；直接返回则继续用默认「下载」目录。');
+  } catch (e) { out('无法打开文件夹选择器：' + e); }
+}
+window.onDirPicked = function () {
+  var n = '';
+  try { n = FS.dirName ? FS.dirName() : ''; } catch (e) {}
+  document.getElementById('dirNow').innerHTML = n ?
+    ('已选择导出文件夹：<b>' + esc(n) + '</b>') :
+    '未选择文件夹，将保存到默认「下载」目录。';
+  out(n ? ('已选择导出文件夹：' + n) : '未选择文件夹，导出将保存到默认「下载」目录。');
+};
+
+/* ---------------- 界面字体（SAF 选字体文件夹 → 列表 → 应用） ---------------- */
+var FONT_KEY = 'readstats.legado.font';
+/* v2.7 修复：每次应用字体使用全新字体族名（dhfont1、dhfont2…）。
+   旧实现复用 'dhfont' 族名时，WebView 字体缓存会沿用已加载的旧字形，
+   导致直接切换字体后界面不更新（必须先恢复默认再选才生效）。
+   族名唯一即可强制重新加载并重绘整个界面。 */
+var FONT_FAM = 'dhfont', FONT_SEQ = 0;
+function applyFontUrl(url) {
+  var el = document.getElementById('dhfont');
+  if (el) el.parentNode.removeChild(el);
+  if (url) {
+    FONT_SEQ++;
+    FONT_FAM = 'dhfont' + FONT_SEQ;
+    el = document.createElement('style');
+    el.id = 'dhfont';
+    el.textContent = "@font-face{font-family:'" + FONT_FAM + "';src:url('" + url + "')}" +
+      " *{font-family:'" + FONT_FAM + "',sans-serif !important}";
+    document.head.appendChild(el);
+  } else {
+    FONT_FAM = 'dhfont';
+  }
+}
+var FONT_NAMES = [];
+/* 字体卡片列表：两列网格，当前字体高亮 */
+function renderFontList() {
+  var host = document.getElementById('fontlist');
+  if (!host) return;
+  var cur = '';
+  try { cur = localStorage.getItem(FONT_KEY) || ''; } catch (e) {}
+  host.innerHTML = FONT_NAMES.map(function (n) {
+    return '<button type="button" class="card fcard' + (n === cur ? ' on' : '') +
+      '" onclick="pickFont(\'' + n.replace(/'/g, "\\'") + '\')">' +
+      '<b>' + esc(n) + '</b><span>' + (n === cur ? '当前字体' : '点击应用') + '</span></button>';
+  }).join('');
+}
+function fontNow() {
+  var n = '';
+  try { n = localStorage.getItem(FONT_KEY) || ''; } catch (e) {}
+  document.getElementById('fontnow').textContent =
+    n ? ('当前字体：' + n + '（重启 App 后仍会保留）') : '当前字体：默认';
+}
+function pickFontDir() {
+  if (!hasFS()) return;
+  try { FS.pickFontDir(); out('已打开系统文件管理器，请选择字体所在的文件夹。'); }
+  catch (e) { out('无法打开文件夹选择器：' + e); }
+}
+window.onFontDirPicked = function () {
+  var s = FS.listFonts();
+  if (!s || s.indexOf('ERR:') === 0) {
+    FONT_NAMES = [];
+    renderFontList();
+    fontNow();
+    out('字体文件夹读取失败：' + (s || '(空)'));
+    return;
+  }
+  var names = s.split('\n').filter(function (x) { return x; });
+  if (!names.length) {
+    FONT_NAMES = [];
+    renderFontList();
+    fontNow();
+    out('该文件夹里没有找到字体文件（支持 .ttf / .otf）。');
+    return;
+  }
+  FONT_NAMES = names;
+  renderFontList();
+  out('找到 ' + names.length + ' 个字体文件，点击卡片即可应用到整个 App。');
+};
+function pickFont(n) {
+  if (!hasFS()) return;
+  var r = FS.loadFont(n);
+  if (!r || r.indexOf('ERR:') === 0) { out('字体加载失败：' + (r || '(空)')); return; }
+  try { localStorage.setItem(FONT_KEY, n); } catch (e) {}
+  applyFontUrl(r);
+  renderFontList();
+  fontNow();
+  redrawBill();
+  out('已应用界面字体：' + n + '。');
+}
+function resetFont() {
+  try { localStorage.removeItem(FONT_KEY); } catch (e) {}
+  applyFontUrl('');
+  renderFontList();
+  fontNow();
+  drawBill();
+  out('已恢复默认字体。');
+}
+function exportReeden() {
+  if (!hasFS()) return;
+  if (!DATA || !DATA.books || !DATA.books.length) {
+    out('请先导入墨本阅读备份，再导出 Reeden 数据。');
+    return;
+  }
+  var recs = DATA.books.map(function (b) {
+    var dd = b.dd || [];
+    var dwMap = {};
+    (b.dw || []).forEach(function (x) { dwMap[x[0]] = x[1]; });
+    var rs = {
+      readStatus: 'reading',
+      readRoundNo: 1
+    };
+    if (dd.length) {
+      rs.readStartTime = dd[0][0] + 'T00:00:00';
+      rs.lastReadTime = dd[dd.length - 1][0] + 'T23:59:59';
+    }
+    return {
+      title: b.title,
+      author: b.author || '',
+      tags: ['读痕导出'],
+      category: '读痕',
+      readingState: rs,
+      readingStatistics: {
+        readingRecords: dd.map(function (x) {
+          var r = { date: x[0], readSeconds: Math.round(x[1] / 1000) };
+          if (dwMap[x[0]]) r.wordCount = dwMap[x[0]];
+          return r;
+        })
+      }
+    };
+  });
+  var text = JSON.stringify(recs, null, 2);
+  var fname = '读痕-Reeden导入-' + stamp() + '.json';
+  var r = '';
+  try { r = FS.saveJson(toB64(text), fname); }
+  catch (e) { out('导出异常：' + e); return; }
+  if (!r || r.indexOf('ERR:') === 0) { out('保存失败：' + (r || '(空)')); return; }
+  out('已生成 Reeden 导入文件：' + r +
+      '\n共 ' + recs.length + ' 本书、' +
+      recs.reduce(function (a, x) { return a + x.readingStatistics.readingRecords.length; }, 0) +
+      ' 条逐日记录。\n在 Reeden 的「外部导入」里选择该文件即可；书架无此书时可开启自动创建书籍。');
+}
+
+/* ---------------- 启动 ---------------- */
+/* 主题：优先恢复上次选择（silent，稍后统一 render） */
+try {
+  var savedTheme = localStorage.getItem(THEME_KEY);
+  if (savedTheme && findTheme(savedTheme)) applyTheme(savedTheme, true);
+  else renderThemeTab();
+} catch (e) { renderThemeTab(); }
+
+/* 字体：恢复上次选择（字体文件已复制在 App 私有目录，直接可用） */
+try {
+  var savedFont = localStorage.getItem(FONT_KEY);
+  if (savedFont && typeof FS !== 'undefined' && FS.fontUrl) {
+    var fu = FS.fontUrl();
+    if (fu) applyFontUrl(fu);
+  }
+} catch (e) {}
+fontNow();
+
+try {
+  var cached = localStorage.getItem(KEY);
+  if (cached) {
+    DATA = JSON.parse(cached);
+    document.getElementById('src').innerHTML =
+      '<b>墨本阅读 · ' + esc(DATA.source) + '</b>　<span class="ok">已缓存</span><br>' +
+      '<span class="small">来源：系统文件管理器选择的文件<br>导入：' + esc(DATA.generated) +
+      '　逐日 ' + DATA.daily.length + ' 天　书籍 ' + DATA.books.length + ' 本<br>' +
+      '需要更新时到「导入」标签页点「选择备份文件」选中新备份即可。</span>';
+    out('已载入上次导入的数据（' + DATA.daily.length + ' 天）。');
+  }
+} catch (e) {}
+render();
+redrawBill();
+/* 默认标签页：已有数据直接看统计，否则先去导入 */
+showTab(DATA ? 'stats' : 'import');
+
+/* 启动自检：确认文件桥已注入，并回显已选导出文件夹 */
+try {
+  if (typeof FS === 'undefined') {
+    out('自检失败：文件接口 FS 未注入（请确认安装的是 v2.7 版本）。');
+  } else {
+    if (!DATA) {
+      out('就绪：点「选择备份文件」，用系统文件管理器导入墨本阅读备份。');
+    }
+    var dn = '';
+    try { dn = FS.dirName ? FS.dirName() : ''; } catch (e) {}
+    if (dn) {
+      document.getElementById('dirNow').innerHTML = '已选择导出文件夹：<b>' + esc(dn) + '</b>';
+    }
+  }
+} catch (e) {
+  out('自检异常（文件桥）：' + e);
+}
+</script>
+</body>
+</html>
